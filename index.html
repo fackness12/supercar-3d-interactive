@@ -2,11 +2,35 @@
 <style>*{box-sizing:border-box}body{margin:0;background:#090b0e;color:#eee;font:14px system-ui}.app{max-width:1250px;margin:auto;padding:12px}.layout{display:grid;grid-template-columns:1fr 330px;gap:12px}.stage{height:680px;border:1px solid #343a43;border-radius:18px;overflow:hidden;position:relative;background:radial-gradient(circle,#414750,#0b0d10 65%)}canvas{width:100%;height:100%;display:block}.hint{position:absolute;top:10px;left:10px;background:#101318dd;border:1px solid #363c46;padding:8px;border-radius:9px;font-size:11px}.panel{background:#111419;border:1px solid #30353e;border-radius:18px;padding:12px;overflow:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}button{background:#1b2028;color:#fff;border:1px solid #343b46;border-radius:9px;padding:9px;min-height:42px;font-weight:700}button:active{transform:scale(.98)}.card{background:#181c22;border:1px solid #30353e;border-radius:12px;padding:11px;margin-top:9px}.small{font-size:11px;color:#9da4ae}.name{font-size:19px;font-weight:800;margin:3px 0}.tag{display:inline-block;border:1px solid #414854;border-radius:7px;padding:3px 6px;font-size:10px;margin:2px}.parts{max-height:220px;overflow:auto;display:grid;gap:5px}p{line-height:1.4}@media(max-width:850px){.layout{grid-template-columns:1fr}.stage{height:480px}.panel{order:2}}</style>
 <div class="app"><h2>🔧 Supercar 3D Interactive — V4 + V5</h2><div class="layout"><div class="stage"><div class="hint">👆 Touchez une pièce • glissez pour tourner • pince/roulette pour zoomer</div><canvas id="c"></canvas></div><aside class="panel"><div class="grid"><button id="exp">💥 Éclatée</button><button id="asm">↩ Remonter</button><button id="rm">🔧 Démonter</button><button id="run">▶ Fonctionner</button><button id="eng">🧠 Moteur ouvert</button><button id="reset">⟳ Reset</button></div><div class="card" id="info"><div class="small">INSPECTION</div><div class="name">Touchez une pièce</div><p>Rôle, fonctionnement, interactions, panne possible et état apparaissent ici.</p></div><div class="card"><div class="small">SYSTÈMES</div><div class="grid" id="systems"></div></div><div class="card"><div class="small">PIÈCES INTERNES</div><div class="parts" id="internals"></div></div></aside></div></div>
 <script type="module">
-import*as T from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import * as T from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 const cv=document.querySelector('#c'),st=document.querySelector('.stage'),r=new T.WebGLRenderer({canvas:cv,antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.shadowMap.enabled=true;
 const s=new T.Scene(),cam=new T.PerspectiveCamera(38,1,.1,100);s.add(new T.HemisphereLight(0xffffff,0x20242a,2));const dl=new T.DirectionalLight(0xffffff,3);dl.position.set(5,8,6);s.add(dl);
 const mat={red:new T.MeshStandardMaterial({color:0x8b1520,metalness:.75,roughness:.23}),red2:new T.MeshStandardMaterial({color:0xc0212d,metalness:.7,roughness:.22}),black:new T.MeshStandardMaterial({color:0x090a0c,roughness:.65}),metal:new T.MeshStandardMaterial({color:0xbcc2c9,metalness:.95,roughness:.18}),dark:new T.MeshStandardMaterial({color:0x343a43,metalness:.75,roughness:.3}),gold:new T.MeshStandardMaterial({color:0xc39a4d,metalness:.9,roughness:.2}),glass:new T.MeshStandardMaterial({color:0x18303c,transparent:true,opacity:.55}),hi:new T.MeshStandardMaterial({color:0xffa0a0,emissive:0x650000,emissiveIntensity:.8})};
 const car=new T.Group();s.add(car);let P=[],I=[],orig=new Map(),sel=null;
+
+const gltfLoader=new GLTFLoader();
+let lamborghini=null;
+gltfLoader.load('./models/lamborghini.glb',
+  (gltf)=>{
+    lamborghini=gltf.scene;
+    lamborghini.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+    const box=new T.Box3().setFromObject(lamborghini);
+    const size=box.getSize(new T.Vector3());
+    const center=box.getCenter(new T.Vector3());
+    lamborghini.position.sub(center);
+    const maxDim=Math.max(size.x,size.y,size.z);
+    if(maxDim>0) lamborghini.scale.setScalar(5.2/maxDim);
+    const box2=new T.Box3().setFromObject(lamborghini);
+    lamborghini.position.y-=box2.min.y;
+    car.add(lamborghini);
+    P.forEach(g=>g.visible=false);
+    I.forEach(g=>g.visible=false);
+    console.log('✅ Lamborghini GLB chargée');
+  },
+  undefined,
+  (err)=>console.error('❌ Erreur chargement ./models/lamborghini.glb',err)
+);
 function add(name,sys,geo,ma,pos,role,work,links,fault,internal=false){const g=new T.Group(),m=new T.Mesh(geo,ma);m.castShadow=true;g.add(m);g.position.set(...pos);g.userData={name,sys,role,work,links,fault,base:ma};g.visible=!internal;car.add(g);(internal?I:P).push(g);orig.set(g,{p:g.position.clone(),rot:g.rotation.clone()});return g}
 const box=(n,sys,w,h,d,x,y,z,ma,role,work,links,fault)=>add(n,sys,new T.BoxGeometry(w,h,d),ma,[x,y,z],role,work,links,fault);
 const cyl=(n,sys,rad,h,x,y,z,ma,role,work,links,fault)=>add(n,sys,new T.CylinderGeometry(rad,rad,h,24),ma,[x,y,z],role,work,links,fault);
@@ -36,15 +60,15 @@ const cam=internal('Arbre à cames',new T.CylinderGeometry(.08,.08,1.8,20),[0,1.
 const clutch=internal('Embrayage',new T.CylinderGeometry(.38,.38,.18,32),[0,.92,-1.48],'Couple moteur et boîte.','Le disque transmet le couple lorsqu’il est serré.','Volant moteur, boîte.','Patinage/vibrations.');clutch.rotation.z=Math.PI/2;
 function show(p){const e=document.querySelector('#info');if(!p){e.innerHTML='<div class="small">INSPECTION</div><div class="name">Touchez une pièce</div><p>Les informations techniques apparaîtront ici.</p>';return}e.innerHTML='<div class="small">'+p.userData.sys+'</div><div class="name">'+p.userData.name+'</div><span class="tag">RÔLE</span><p>'+p.userData.role+'</p><span class="tag">FONCTIONNEMENT</span><p>'+p.userData.work+'</p><span class="tag">INTERACTIONS</span><p>'+p.userData.links+'</p><span class="tag">DIAGNOSTIC</span><p>⚠️ '+p.userData.fault+'</p><p><b>État :</b> '+(p.visible?'installée':'démontée')+'</p>}
 function select(p){sel=p;[...P,...I].forEach(g=>g.children[0].material=g===p?mat.hi:g.userData.base);show(p)}
-function reset(){[...P,...I].forEach(g=>{const o=orig.get(g);g.position.copy(o.p);g.rotation.copy(o.rot);g.visible=P.includes(g)});sel=null;show()}
-function explode(){P.forEach(g=>{const o=orig.get(g);g.visible=true;g.position.copy(o.p);g.position.x+=((g.userData.name.length%3)-1)*.65;g.position.y+=.35;});I.forEach(g=>g.visible=false)}
-function openEngine(){P.forEach(g=>g.visible=!['Moteur','Transmission'].includes(g.userData.sys));I.forEach(g=>g.visible=true);show()}
+function reset(){if(lamborghini){lamborghini.visible=true;lamborghini.position.set(0,0,0);lamborghini.rotation.set(0,0,0)}[...P,...I].forEach(g=>{const o=orig.get(g);g.position.copy(o.p);g.rotation.copy(o.rot);g.visible=false});sel=null;show()}
+function explode(){if(lamborghini){lamborghini.visible=true}P.forEach(g=>g.visible=false);I.forEach(g=>g.visible=false)}
+function openEngine(){if(lamborghini)lamborghini.visible=true;P.forEach(g=>g.visible=false);I.forEach(g=>g.visible=true);show()}
 document.querySelector('#reset').onclick=reset;document.querySelector('#asm').onclick=reset;document.querySelector('#exp').onclick=explode;document.querySelector('#eng').onclick=openEngine;
-document.querySelector('#rm').onclick=()=>{if(sel){sel.visible=false;show(sel)}};document.querySelector('#run').onclick=()=>{if(!sel)return;const g=sel,t=performance.now(),base=g.rotation.y;function a(n){const k=Math.min(1,(n-t)/1600);g.rotation.y=base+Math.sin(k*Math.PI*8)*.45;if(k<1)requestAnimationFrame(a)}requestAnimationFrame(a)};
+document.querySelector('#rm').onclick=()=>{if(sel&&sel!==lamborghini){sel.visible=false;show(sel)}};document.querySelector('#run').onclick=()=>{if(!sel)return;const g=sel,t=performance.now(),base=g.rotation.y;function a(n){const k=Math.min(1,(n-t)/1600);g.rotation.y=base+Math.sin(k*Math.PI*8)*.45;if(k<1)requestAnimationFrame(a)}requestAnimationFrame(a)};
 [...new Set(P.map(x=>x.userData.sys))].forEach(sys=>{const b=document.createElement('button');b.textContent=sys;b.onclick=()=>{P.forEach(g=>g.visible=g.userData.sys===sys||g.userData.sys==='Châssis');I.forEach(g=>g.visible=false);show()};document.querySelector('#systems').append(b)});
 I.forEach(g=>{const b=document.createElement('button');b.textContent=g.userData.name;b.onclick=()=>{openEngine();select(g)};document.querySelector('#internals').append(b)});
 const ray=new T.Raycaster(),mouse=new T.Vector2();let drag=false,lx=0,ly=0,down=0,ry=.7,rx=.12,dist=8.5;
-cv.onpointerdown=e=>{drag=true;lx=e.clientX;ly=e.clientY;down=Date.now()};cv.onpointermove=e=>{if(!drag)return;ry+=(e.clientX-lx)*.01;rx=Math.max(-.55,Math.min(.55,rx+(e.clientY-ly)*.007));lx=e.clientX;ly=e.clientY};cv.onpointerup=e=>{drag=false;if(Date.now()-down>180)return;const q=cv.getBoundingClientRect();mouse.x=(e.clientX-q.left)/q.width*2-1;mouse.y=-(e.clientY-q.top)/q.height*2+1;ray.setFromCamera(mouse,cam);const a=[...P,...I].filter(x=>x.visible),h=ray.intersectObjects(a.flatMap(x=>x.children));if(h[0])select(a.find(x=>x.children.includes(h[0].object)))};
+cv.onpointerdown=e=>{drag=true;lx=e.clientX;ly=e.clientY;down=Date.now()};cv.onpointermove=e=>{if(!drag)return;ry+=(e.clientX-lx)*.01;rx=Math.max(-.55,Math.min(.55,rx+(e.clientY-ly)*.007));lx=e.clientX;ly=e.clientY};cv.onpointerup=e=>{drag=false;if(Date.now()-down>180)return;const q=cv.getBoundingClientRect();mouse.x=(e.clientX-q.left)/q.width*2-1;mouse.y=-(e.clientY-q.top)/q.height*2+1;ray.setFromCamera(mouse,cam);const a=[...P,...I].filter(x=>x.visible);if(lamborghini&&lamborghini.visible){const mh=ray.intersectObject(lamborghini,true);if(mh.length){show({userData:{sys:'Lamborghini',name:mh[0].object.name||'Pièce du modèle',role:'Élément du modèle 3D.',work:'Modèle chargé depuis le fichier GLB.',links:'Voir les nœuds du modèle GLB.',fault:'Diagnostic détaillé non défini pour ce nœud.'}});return}}const h=ray.intersectObjects(a.flatMap(x=>x.children));if(h[0])select(a.find(x=>x.children.includes(h[0].object)))};
 cv.onwheel=e=>{e.preventDefault();dist=Math.max(5,Math.min(14,dist+e.deltaY*.008))};
 function resize(){const w=st.clientWidth,h=st.clientHeight;r.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}new ResizeObserver(resize).observe(st);resize();
 function loop(){requestAnimationFrame(loop);car.rotation.y=ry;car.rotation.x=rx;cam.position.set(0,3.5,dist);cam.lookAt(0,1.05,0);r.render(s,cam)}loop();

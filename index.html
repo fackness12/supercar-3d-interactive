@@ -11,7 +11,7 @@ const car=new T.Group();s.add(car);let P=[],I=[],orig=new Map(),sel=null;
 
 const gltfLoader=new GLTFLoader();
 let lamborghini=null;
-gltfLoader.load('https://tommykho.github.io/assets/models/lamborghini.glb',
+gltfLoader.load('https://ladytron21496.github.io/threejslambo/scene.gltf',
   (gltf)=>{
     lamborghini=gltf.scene;
     lamborghini.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});

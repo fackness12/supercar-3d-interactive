@@ -1,38 +1,40 @@
 <!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Supercar 3D Interactive</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#090b0e;color:#eee;font:14px system-ui}.app{max-width:1250px;margin:auto;padding:12px}.layout{display:grid;grid-template-columns:1fr 330px;gap:12px}.stage{height:680px;border:1px solid #343a43;border-radius:18px;overflow:hidden;position:relative;background:radial-gradient(circle,#414750,#0b0d10 65%)}canvas{width:100%;height:100%;display:block;touch-action:none}.hint{position:absolute;top:10px;left:10px;background:#101318dd;border:1px solid #363c46;padding:8px;border-radius:9px;font-size:11px}.panel{background:#111419;border:1px solid #30353e;border-radius:18px;padding:12px;overflow:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}button{background:#1b2028;color:#fff;border:1px solid #343b46;border-radius:9px;padding:9px;min-height:42px;font-weight:700}button:active{transform:scale(.98)}.card{background:#181c22;border:1px solid #30353e;border-radius:12px;padding:11px;margin-top:9px}.small{font-size:11px;color:#9da4ae}.name{font-size:19px;font-weight:800;margin:3px 0}.tag{display:inline-block;border:1px solid #414854;border-radius:7px;padding:3px 6px;font-size:10px;margin:2px}.parts{max-height:220px;overflow:auto;display:grid;gap:5px}p{line-height:1.4}@media(max-width:850px){.layout{grid-template-columns:1fr}.stage{height:480px}.panel{order:2}}</style>
-<div class="app"><h2>🔧 Supercar 3D Interactive — V4 + V5</h2><div class="layout"><div class="stage"><div class="hint">👆 Touchez une pièce • glissez pour tourner • pince/roulette pour zoomer</div><div class="hint" id="load" style="top:auto;bottom:10px">⏳ Chargement du modèle 3D…</div><canvas id="c"></canvas></div><aside class="panel"><div class="grid"><button id="exp">💥 Éclatée</button><button id="asm">↩ Remonter</button><button id="rm">🔧 Démonter</button><button id="run">▶ Fonctionner</button><button id="eng">🧠 Moteur ouvert</button><button id="reset">⟳ Reset</button></div><div class="card" id="info"><div class="small">INSPECTION</div><div class="name">Touchez une pièce</div><p>Rôle, fonctionnement, interactions, panne possible et état apparaissent ici.</p></div><div class="card"><div class="small">SYSTÈMES</div><div class="grid" id="systems"></div></div><div class="card"><div class="small">PIÈCES INTERNES</div><div class="parts" id="internals"></div></div></aside></div></div>
+<div class="app"><h2>🔧 Supercar 3D Interactive — V4 + V5</h2><div class="layout"><div class="stage"><div class="hint">👆 Touchez une pièce • glissez pour tourner • pince/roulette pour zoomer</div><div class="hint" id="load" style="top:auto;bottom:10px">⏳ Chargement du modèle 3D…</div><canvas id="c"></canvas></div><aside class="panel"><div class="grid"><button id="exp">💥 Éclatée</button><button id="asm">↩ Remonter</button><button id="rm">🔧 Démonter</button><button id="run">▶ Fonctionner</button><button id="eng">🧠 Moteur ouvert</button><button id="reset">⟳ Reset</button></div><div class="card" id="info"><div class="small">INSPECTION</div><div class="name">Touchez une pièce</div><p>Rôle, fonctionnement, interactions, panne possible et état apparaissent ici.</p></div><div class="card"><div class="small">SYSTÈMES</div><div class="grid" id="systems"></div></div><div class="card"><div class="small">PIÈCES INTERNES</div><div class="parts" id="internals"></div></div></aside></div><p class="small">Modèle 3D « Car Concept » par Eric Chadwick (Darmstadt Graphics Group), <a href="https://creativecommons.org/licenses/by/4.0/" style="color:#9da4ae">CC BY 4.0</a>, adapté (textures et géométrie compressées). Voir <a href="CREDITS.md" style="color:#9da4ae">CREDITS.md</a>.</p></div>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 <script type="module">
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-const cv=document.querySelector('#c'),st=document.querySelector('.stage'),r=new T.WebGLRenderer({canvas:cv,antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.shadowMap.enabled=true;
-const s=new T.Scene(),cam=new T.PerspectiveCamera(38,1,.1,100);s.add(new T.HemisphereLight(0xffffff,0x20242a,2));const dl=new T.DirectionalLight(0xffffff,3);dl.position.set(5,8,6);s.add(dl);
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const cv=document.querySelector('#c'),st=document.querySelector('.stage'),r=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.shadowMap.enabled=true;r.toneMapping=T.ACESFilmicToneMapping;r.toneMappingExposure=1;
+const s=new T.Scene(),cam=new T.PerspectiveCamera(38,1,.1,100);s.environment=new T.PMREMGenerator(r).fromScene(new RoomEnvironment(),.04).texture;s.add(new T.HemisphereLight(0xffffff,0x20242a,.7));const dl=new T.DirectionalLight(0xffffff,1.6);dl.position.set(5,8,6);s.add(dl);
 const mat={red:new T.MeshStandardMaterial({color:0x8b1520,metalness:.75,roughness:.23}),red2:new T.MeshStandardMaterial({color:0xc0212d,metalness:.7,roughness:.22}),black:new T.MeshStandardMaterial({color:0x090a0c,roughness:.65}),metal:new T.MeshStandardMaterial({color:0xbcc2c9,metalness:.95,roughness:.18}),dark:new T.MeshStandardMaterial({color:0x343a43,metalness:.75,roughness:.3}),gold:new T.MeshStandardMaterial({color:0xc39a4d,metalness:.9,roughness:.2}),glass:new T.MeshStandardMaterial({color:0x18303c,transparent:true,opacity:.55}),hi:new T.MeshStandardMaterial({color:0xffa0a0,emissive:0x650000,emissiveIntensity:.8})};
 const car=new T.Group();s.add(car);let P=[],I=[],orig=new Map(),sel=null;
 
-const gltfLoader=new GLTFLoader();
-let lamborghini=null,lamboHome=null;const loadEl=document.querySelector('#load');
-gltfLoader.load('https://ladytron21496.github.io/threejslambo/scene.gltf',
+const gltfLoader=new GLTFLoader();gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+let carModel=null,carHome=null;const loadEl=document.querySelector('#load');
+gltfLoader.load('./models/CarConcept.glb',
   (gltf)=>{
-    lamborghini=gltf.scene;
-    lamborghini.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-    const box=new T.Box3().setFromObject(lamborghini);
+    carModel=gltf.scene;
+    carModel.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+    const box=new T.Box3().setFromObject(carModel);
     const size=box.getSize(new T.Vector3());
     const center=box.getCenter(new T.Vector3());
-    lamborghini.position.sub(center);
+    carModel.position.sub(center);
     const maxDim=Math.max(size.x,size.y,size.z);
-    if(maxDim>0) lamborghini.scale.setScalar(5.2/maxDim);
-    const box2=new T.Box3().setFromObject(lamborghini);
-    lamborghini.position.y-=box2.min.y;
-    lamboHome=lamborghini.position.clone();
-    car.add(lamborghini);
+    if(maxDim>0) carModel.scale.setScalar(5.2/maxDim);
+    const box2=new T.Box3().setFromObject(carModel);
+    carModel.position.y-=box2.min.y;
+    carHome=carModel.position.clone();
+    car.add(carModel);
     P.forEach(g=>g.visible=false);
     I.forEach(g=>g.visible=false);
     loadEl.remove();
   },
-  undefined,
+  (e)=>{if(e.lengthComputable&&loadEl.isConnected)loadEl.textContent='⏳ Chargement du modèle 3D… '+Math.round(e.loaded/e.total*100)+' %'},
   (err)=>{
-    console.error('❌ Erreur chargement du modèle Lamborghini',err);
+    console.error('❌ Erreur chargement du modèle 3D',err);
     loadEl.textContent='⚠️ Modèle 3D indisponible : pièces simplifiées affichées';
   }
 );
@@ -66,12 +68,12 @@ const clutch=internal('Embrayage',new T.CylinderGeometry(.38,.38,.18,32),[0,.92,
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function show(p){const e=document.querySelector('#info');if(!p){e.innerHTML='<div class="small">INSPECTION</div><div class="name">Touchez une pièce</div><p>Les informations techniques apparaîtront ici.</p>';return}const u=p.userData;e.innerHTML='<div class="small">'+esc(u.sys)+'</div><div class="name">'+esc(u.name)+'</div><span class="tag">RÔLE</span><p>'+esc(u.role)+'</p><span class="tag">FONCTIONNEMENT</span><p>'+esc(u.work)+'</p><span class="tag">INTERACTIONS</span><p>'+esc(u.links)+'</p><span class="tag">DIAGNOSTIC</span><p>⚠️ '+esc(u.fault)+'</p><p><b>État :</b> '+(p.visible===false?'démontée':'installée')+'</p>'}
 function select(p){sel=p;[...P,...I].forEach(g=>g.children[0].material=g===p?mat.hi:g.userData.base);show(p)}
-function showCar(){if(lamborghini)lamborghini.visible=true;P.forEach(g=>g.visible=!lamborghini);I.forEach(g=>g.visible=false)}
-function reset(){if(lamborghini){lamborghini.position.copy(lamboHome);lamborghini.rotation.set(0,0,0)}[...P,...I].forEach(g=>{const o=orig.get(g);g.position.copy(o.p);g.rotation.copy(o.rot);g.children[0].material=g.userData.base});showCar();sel=null;show()}
+function showCar(){if(carModel)carModel.visible=true;P.forEach(g=>g.visible=!carModel);I.forEach(g=>g.visible=false)}
+function reset(){if(carModel){carModel.position.copy(carHome);carModel.rotation.set(0,0,0)}[...P,...I].forEach(g=>{const o=orig.get(g);g.position.copy(o.p);g.rotation.copy(o.rot);g.children[0].material=g.userData.base});showCar();sel=null;show()}
 function explode(){showCar()}
-function openEngine(){if(lamborghini)lamborghini.visible=true;P.forEach(g=>g.visible=false);I.forEach(g=>g.visible=true);show()}
+function openEngine(){if(carModel)carModel.visible=true;P.forEach(g=>g.visible=false);I.forEach(g=>g.visible=true);show()}
 document.querySelector('#reset').onclick=reset;document.querySelector('#asm').onclick=reset;document.querySelector('#exp').onclick=explode;document.querySelector('#eng').onclick=openEngine;
-document.querySelector('#rm').onclick=()=>{if(sel&&sel!==lamborghini){sel.visible=false;show(sel)}};document.querySelector('#run').onclick=()=>{if(!sel)return;const g=sel,t=performance.now(),base=g.rotation.y;function a(n){const k=Math.min(1,(n-t)/1600);g.rotation.y=base+Math.sin(k*Math.PI*8)*.45;if(k<1)requestAnimationFrame(a)}requestAnimationFrame(a)};
+document.querySelector('#rm').onclick=()=>{if(sel&&sel!==carModel){sel.visible=false;show(sel)}};document.querySelector('#run').onclick=()=>{if(!sel)return;const g=sel,t=performance.now(),base=g.rotation.y;function a(n){const k=Math.min(1,(n-t)/1600);g.rotation.y=base+Math.sin(k*Math.PI*8)*.45;if(k<1)requestAnimationFrame(a)}requestAnimationFrame(a)};
 [...new Set(P.map(x=>x.userData.sys))].forEach(sys=>{const b=document.createElement('button');b.textContent=sys;b.onclick=()=>{P.forEach(g=>g.visible=g.userData.sys===sys||g.userData.sys==='Châssis');I.forEach(g=>g.visible=false);show()};document.querySelector('#systems').append(b)});
 I.forEach(g=>{const b=document.createElement('button');b.textContent=g.userData.name;b.onclick=()=>{openEngine();select(g)};document.querySelector('#internals').append(b)});
 const ray=new T.Raycaster(),mouse=new T.Vector2();let drag=false,lx=0,ly=0,down=0,ry=.7,rx=.12,dist=8.5;
@@ -79,7 +81,7 @@ const ptrs=new Map();let pinch=0;const pdist=()=>{const a=[...ptrs.values()];ret
 cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});drag=ptrs.size===1;if(drag){lx=e.clientX;ly=e.clientY;down=Date.now()}else if(ptrs.size===2)pinch=pdist()};
 cv.onpointercancel=e=>{ptrs.delete(e.pointerId);drag=false};
 cv.onpointermove=e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===2){const d=pdist();dist=Math.max(5,Math.min(14,dist-(d-pinch)*.02));pinch=d;return}if(!drag)return;ry+=(e.clientX-lx)*.01;rx=Math.max(-.55,Math.min(.55,rx+(e.clientY-ly)*.007));lx=e.clientX;ly=e.clientY};
-cv.onpointerup=e=>{const single=ptrs.size===1;ptrs.delete(e.pointerId);drag=false;if(!single||Date.now()-down>180)return;const q=cv.getBoundingClientRect();mouse.x=(e.clientX-q.left)/q.width*2-1;mouse.y=-(e.clientY-q.top)/q.height*2+1;ray.setFromCamera(mouse,cam);const a=[...P,...I].filter(x=>x.visible);if(lamborghini&&lamborghini.visible){const mh=ray.intersectObject(lamborghini,true);if(mh.length){show({userData:{sys:'Lamborghini',name:mh[0].object.name||'Pièce du modèle',role:'Élément du modèle 3D.',work:'Modèle chargé depuis le fichier GLB.',links:'Voir les nœuds du modèle GLB.',fault:'Diagnostic détaillé non défini pour ce nœud.'}});return}}const h=ray.intersectObjects(a.flatMap(x=>x.children));if(h[0])select(a.find(x=>x.children.includes(h[0].object)))};
+cv.onpointerup=e=>{const single=ptrs.size===1;ptrs.delete(e.pointerId);drag=false;if(!single||Date.now()-down>180)return;const q=cv.getBoundingClientRect();mouse.x=(e.clientX-q.left)/q.width*2-1;mouse.y=-(e.clientY-q.top)/q.height*2+1;ray.setFromCamera(mouse,cam);const a=[...P,...I].filter(x=>x.visible);if(carModel&&carModel.visible){const mh=ray.intersectObject(carModel,true);if(mh.length){show({userData:{sys:'Car Concept',name:mh[0].object.name||'Pièce du modèle',role:'Élément du modèle 3D.',work:'Modèle chargé depuis le fichier GLB.',links:'Voir les nœuds du modèle GLB.',fault:'Diagnostic détaillé non défini pour ce nœud.'}});return}}const h=ray.intersectObjects(a.flatMap(x=>x.children));if(h[0])select(a.find(x=>x.children.includes(h[0].object)))};
 cv.onwheel=e=>{e.preventDefault();dist=Math.max(5,Math.min(14,dist+e.deltaY*.008))};
 function resize(){const w=st.clientWidth,h=st.clientHeight;r.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}new ResizeObserver(resize).observe(st);resize();
 function loop(){requestAnimationFrame(loop);car.rotation.y=ry;car.rotation.x=rx;cam.position.set(0,3.5,dist);cam.lookAt(0,1.05,0);r.render(s,cam)}loop();
